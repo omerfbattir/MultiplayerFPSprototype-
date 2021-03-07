@@ -1,47 +1,77 @@
-//TODO
-/*
-çatışma mekanikleri
-*/
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerMotor))]
+[RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
+    [SerializeField] private float     mouseSensivity = 50f;
+    [SerializeField] private float     speed = 12f;
+    [SerializeField] private float     jumpH = 3f;
+    [SerializeField] private float     groundDistance;
+    [SerializeField] private Transform playerCam;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private LayerMask groundLayer;
     
-    [SerializeField] private float  speed;    
-    [SerializeField] private float  lookSens;
     
-    private PlayerMotor motor;
-    void Awake()
+
+    private CharacterController controller;
+    private float xRotation=1f;
+    
+    private Vector3 velocity;
+    private bool isGrounded;
+    
+    void Start()
     {
-        motor = GetComponent<PlayerMotor>();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        controller = GetComponent<CharacterController>();
+    }
+    
+    void FixedUpdate()
+    {
+        Movement();
+        Looking();
     }
 
-    void Update()
+    void Movement()
     {
-        CalculateVelocity();
-        CameraMovement();        
-    }
-    void CalculateVelocity()
-    {
-        float xMove = Input.GetAxisRaw("Horizontal");
-        float yMove = Input.GetAxisRaw("Vertical");
-
-        Vector3 movHorizontal = transform.right * xMove;
-        Vector3 movVertical = transform.forward * yMove;
+        float xMove = Input.GetAxis("Horizontal");
+        float yMove = Input.GetAxis("Vertical");
         
-        Vector3 velocity = (movHorizontal+movVertical).normalized * speed;
-
-        motor.Move(velocity);
-    }
-    void CameraMovement()
-    {
-        float yRot = Input.GetAxisRaw("Mouse X");
-        Vector3 rotatiton = new Vector3(0, yRot, 0)* lookSens;
-
-        float xRot = Input.GetAxisRaw("Mouse Y");
-        Vector3 camRotation = new Vector3(xRot, 0, 0)* lookSens;
+        Vector3 move = transform.right * xMove + transform.forward * yMove;
+        move = move * speed * Time.fixedDeltaTime;
         
-        motor.Rotate(rotatiton, camRotation);
+        controller.Move(move);
+        
+        
+        isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundLayer);
+
+        if (isGrounded && velocity.y < 0)
+        {
+            velocity.y = -2f;
+        }
+
+        if (isGrounded && Input.GetButtonDown("Jump"))
+        {
+            velocity.y = Mathf.Sqrt(jumpH * -2f * Physics.gravity.y);
+        }
+
+        velocity.y += Physics.gravity.y * Time.fixedDeltaTime;
+        controller.Move(velocity*Time.fixedDeltaTime);
+
+    }
+
+    void Looking()
+    {
+        float mouseX = Input.GetAxis("Mouse X") * mouseSensivity * Time.fixedDeltaTime;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSensivity * Time.fixedDeltaTime;
+
+        xRotation -= mouseY;
+        xRotation = Mathf.Clamp(xRotation, -90, 90);
+        
+        playerCam.transform.localRotation = Quaternion.Euler(xRotation,0,0);
+        transform.Rotate(Vector3.up, mouseX);
     }
 }
